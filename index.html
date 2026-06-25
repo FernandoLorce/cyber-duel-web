@@ -316,7 +316,18 @@ body::before{
   </div>
   <button class="btn btn-o" style="margin-top:28px" onclick="showDiff()">← 返回</button>
 </div>
-
+<div class="fc" onclick="pick('spectator')" style="border-color:#8b5cf6;">
+  <span class="fi">👀</span>
+  <h3 style="color:#8b5cf6">观战模式</h3>
+  <span class="rt" style="background:#f3e8ff;color:#8b5cf6;border-color:#d8b4fe;">👁️ SPECTATOR</span>
+  <div class="al">🔹 观看红蓝双方对决<br>🔹 实时查看攻防状态<br>🔹 不影响游戏进程</div>
+  <div class="role-tip">📱 旁观者设备</div>
+</div>
+  <div>
+  <span class="room-id-display" id="room-id-display">🏠 房间: 未连接</span>
+  <span class="timer-display" id="timer-display">⏱ 10s</span>
+  <span class="fl neutral" id="spectator-count" style="display:none;">👀 观战: 0人</span>
+</div>
 <!-- BATTLE -->
 <div class="screen hide" id="s-battle">
   <div class="tb">
@@ -525,11 +536,16 @@ function handleWebSocketMessage(data) {
     wsRoomId = data.roomId;
     wsClientId = data.clientId;
     document.getElementById("room-id-display").textContent = "🏠 房间: " + data.roomId;
-    if (data.playerCount === data.maxPlayers) {
-        updateStatus("👥 房间已满员（" + data.playerCount + "/" + data.maxPlayers + "），游戏开始！");
+    
+    var statusMsg = "";
+    if (data.isSpectator) {
+        statusMsg = "👀 观战模式 · 等待游戏开始... (" + data.playerCount + "/" + data.maxPlayers + " 玩家)";
+    } else if (data.playerCount === data.maxPlayers) {
+        statusMsg = "👥 房间已满员（" + data.playerCount + "/" + data.maxPlayers + "），游戏开始！";
     } else {
-        updateStatus("👤 等待更多玩家加入... (" + data.playerCount + "/" + data.maxPlayers + ")");
+        statusMsg = "👤 等待更多玩家加入... (" + data.playerCount + "/" + data.maxPlayers + ")";
     }
+    updateStatus(statusMsg);
     break;
     
 case 'room_update':
@@ -1069,32 +1085,52 @@ function showFaction(){
 }
 
 function pick(f){
-  currentFaction = f;
-  byId("s-intro").classList.add("hide");
-  byId("s-diff").classList.add("hide");
-  byId("s-faction").classList.add("hide");
-  byId("s-battle").classList.remove("hide");
-  
-  initWebSocket();
-  
-  loadGameState();
-  
-  if(!isGameActive){
-    startGameTimer();
-  } 
-  updateTimerDisplay();
+    currentFaction = f;
+    byId("s-intro").classList.add("hide");
+    byId("s-diff").classList.add("hide");
+    byId("s-faction").classList.add("hide");
+    byId("s-battle").classList.remove("hide");
+    
+    initWebSocket();
+    
+    // 如果是观战模式，发送观战请求
+    if (f === "spectator") {
+        // 等待 WebSocket 连接后发送观战消息
+        setTimeout(function() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'join_room',
+                    roomId: roomId,
+                    clientId: wsClientId || generateClientId(),
+                    isSpectator: true
+                }));
+            }
+        }, 500);
+    }
+    
+    loadGameState();
+    
+    if(!isGameActive){
+        startGameTimer();
+    } 
+    updateTimerDisplay();
 
-  var lb = byId("faction-label");
-  if(f === "red"){
-    lb.innerHTML = "🔥 RED · 攻击方";
-    lb.className = "fl r";
-    updateStatus("🔥 红方攻击模式 · 等待其他玩家加入...");
-  } else {
-    lb.innerHTML = "🛡️ BLUE · 防守方";
-    lb.className = "fl b";
-    updateStatus("🛡️ 蓝方防御模式 · 等待其他玩家加入...");
-  }
-  render();
+    var lb = byId("faction-label");
+    if(f === "red"){
+        lb.innerHTML = "🔥 RED · 攻击方";
+        lb.className = "fl r";
+        updateStatus("🔥 红方攻击模式 · 点击部门选择攻击技能");
+    } else if(f === "spectator") {
+        lb.innerHTML = "👀 观战模式";
+        lb.className = "fl neutral";
+        updateStatus("👀 观战模式 · 实时观看对战");
+        // 观战者不能操作
+    } else {
+        lb.innerHTML = "🛡️ BLUE · 防守方";
+        lb.className = "fl b";
+        updateStatus("🛡️ 蓝方防御模式 · 点击已攻破部门进行防御");
+    }
+    render();
 }
 
 function resetGame(){
@@ -1538,7 +1574,11 @@ function closeSkillPanel(){
 function action(deptId, deptName){
   if(!currentFaction){ alert("请先选择阵营！"); return; }
   if(!isGameActive){ alert("⏰ 游戏已结束！请等待房间重置"); return; }
-  
+  // ⚠️ 观战者不能操作
+    if(currentFaction === "spectator"){
+        alert("👀 观战模式不能操作！");
+        return;
+    }
   if(currentFaction === "blue"){
     var targetDept = null;
     for(var ri=0; ri<DEPARTMENTS.length; ri++){
