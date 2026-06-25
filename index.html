@@ -316,18 +316,7 @@ body::before{
   </div>
   <button class="btn btn-o" style="margin-top:28px" onclick="showDiff()">← 返回</button>
 </div>
-<div class="fc" onclick="pick('spectator')" style="border-color:#8b5cf6;">
-  <span class="fi">👀</span>
-  <h3 style="color:#8b5cf6">观战模式</h3>
-  <span class="rt" style="background:#f3e8ff;color:#8b5cf6;border-color:#d8b4fe;">👁️ SPECTATOR</span>
-  <div class="al">🔹 观看红蓝双方对决<br>🔹 实时查看攻防状态<br>🔹 不影响游戏进程</div>
-  <div class="role-tip">📱 旁观者设备</div>
-</div>
-  <div>
-  <span class="room-id-display" id="room-id-display">🏠 房间: 未连接</span>
-  <span class="timer-display" id="timer-display">⏱ 10s</span>
-  <span class="fl neutral" id="spectator-count" style="display:none;">👀 观战: 0人</span>
-</div>
+
 <!-- BATTLE -->
 <div class="screen hide" id="s-battle">
   <div class="tb">
@@ -477,11 +466,10 @@ var wsClientId = "";
 function initWebSocket() {
     if (ws && ws.readyState === WebSocket.OPEN) {
         console.log("⚠️ WebSocket 已存在且打开");
-        return;
-    }
-    
-    if (ws && ws.readyState === WebSocket.CONNECTING) {
-        console.log("⏳ WebSocket 正在连接中...");
+        // 如果已经打开但还没加入房间，尝试加入
+        if (roomId) {
+            joinRoom(roomId);
+        }
         return;
     }
     
@@ -489,20 +477,20 @@ function initWebSocket() {
     console.log("🔗 正在连接 WebSocket:", wsUrl);
     ws = new WebSocket(wsUrl);
     
-   ws.onopen = function() {
-    wsConnected = true;
-    console.log("✅ WebSocket 已连接");
-    console.log("📦 当前房间号:", roomId);
-    // 自动加入房间
-    setTimeout(function() {
-        if (roomId) {
-            console.log("📤 发送 join_room:", roomId);
-            joinRoom(roomId);
-        } else {
-            console.log("⚠️ roomId 为空，无法加入房间");
-        }
-    }, 100);
-};
+    ws.onopen = function() {
+        wsConnected = true;
+        console.log("✅ WebSocket 已连接");
+        console.log("📦 当前房间号:", roomId);
+        // 延迟一下确保连接稳定
+        setTimeout(function() {
+            if (roomId) {
+                console.log("📤 发送 join_room:", roomId);
+                joinRoom(roomId);
+            } else {
+                console.log("⚠️ roomId 为空，无法加入房间");
+            }
+        }, 100);
+    };
     
     ws.onmessage = function(event) {
         try {
@@ -513,9 +501,9 @@ function initWebSocket() {
         }
     };
     
-    ws.onclose = function(event) {
+    ws.onclose = function() {
         wsConnected = false;
-        console.log("🔌 WebSocket 已断开，代码:", event.code);
+        console.log("🔌 WebSocket 已断开，尝试重连...");
         setTimeout(initWebSocket, 3000);
     };
     
@@ -537,32 +525,14 @@ function handleWebSocketMessage(data) {
     wsRoomId = data.roomId;
     wsClientId = data.clientId;
     document.getElementById("room-id-display").textContent = "🏠 房间: " + data.roomId;
-    
-    var statusMsg = "";
-    if (data.isSpectator) {
-        statusMsg = "👀 观战模式 · 已加入！(" + data.playerCount + "/" + data.maxPlayers + " 玩家)";
-        // 更新观战者计数
-        var spectatorEl = document.getElementById("spectator-count");
-        if (spectatorEl) {
-            spectatorEl.style.display = "inline";
-            spectatorEl.textContent = "👀 观战: " + data.spectatorCount + "人";
-        }
-    } else if (data.playerCount === data.maxPlayers) {
-        statusMsg = "👥 房间已满员（" + data.playerCount + "/" + data.maxPlayers + "），游戏开始！";
+    if (data.playerCount === data.maxPlayers) {
+        updateStatus("👥 房间已满员（" + data.playerCount + "/" + data.maxPlayers + "），游戏开始！");
     } else {
-        statusMsg = "👤 等待更多玩家加入... (" + data.playerCount + "/" + data.maxPlayers + ")";
+        updateStatus("👤 等待更多玩家加入... (" + data.playerCount + "/" + data.maxPlayers + ")");
     }
-    updateStatus(statusMsg);
     break;
-
+    
 case 'room_update':
-    if (data.spectatorCount !== undefined) {
-        var spectatorEl = document.getElementById("spectator-count");
-        if (spectatorEl) {
-            spectatorEl.style.display = "inline";
-            spectatorEl.textContent = "👀 观战: " + data.spectatorCount + "人";
-        }
-    }
     if (data.playerCount === data.maxPlayers) {
         updateStatus("👥 房间已满员（" + data.playerCount + "/" + data.maxPlayers + "），游戏开始！");
     } else {
@@ -1099,80 +1069,34 @@ function showFaction(){
 }
 
 function pick(f){
-    currentFaction = f;
-    byId("s-intro").classList.add("hide");
-    byId("s-diff").classList.add("hide");
-    byId("s-faction").classList.add("hide");
-    byId("s-battle").classList.remove("hide");
-    
-    // 先初始化 WebSocket
-    initWebSocket();
-    
-    loadGameState();
-    
-    if(!isGameActive){
-        startGameTimer();
-    } 
-    updateTimerDisplay();
+  currentFaction = f;
+  byId("s-intro").classList.add("hide");
+  byId("s-diff").classList.add("hide");
+  byId("s-faction").classList.add("hide");
+  byId("s-battle").classList.remove("hide");
+  
+  initWebSocket();
+  
+  loadGameState();
+  
+  if(!isGameActive){
+    startGameTimer();
+  } 
+  updateTimerDisplay();
 
-    var lb = byId("faction-label");
-    if(f === "red"){
-        lb.innerHTML = "🔥 RED · 攻击方";
-        lb.className = "fl r";
-        updateStatus("🔥 红方攻击模式 · 点击部门选择攻击技能");
-    } else if(f === "spectator") {
-        lb.innerHTML = "👀 观战模式";
-        lb.className = "fl neutral";
-        updateStatus("👀 观战模式 · 正在连接...");
-    } else {
-        lb.innerHTML = "🛡️ BLUE · 防守方";
-        lb.className = "fl b";
-        updateStatus("🛡️ 蓝方防御模式 · 点击已攻破部门进行防御");
-    }
-    render();
-    
-    // ✅ 修改：无论是玩家还是观战者，都等待 WebSocket 连接后加入房间
-    waitForWebSocketAndJoin(f);
+  var lb = byId("faction-label");
+  if(f === "red"){
+    lb.innerHTML = "🔥 RED · 攻击方";
+    lb.className = "fl r";
+    updateStatus("🔥 红方攻击模式 · 等待其他玩家加入...");
+  } else {
+    lb.innerHTML = "🛡️ BLUE · 防守方";
+    lb.className = "fl b";
+    updateStatus("🛡️ 蓝方防御模式 · 等待其他玩家加入...");
+  }
+  render();
 }
-function waitForWebSocketAndJoin(faction) {
-    var attempts = 0;
-    var maxAttempts = 30; // 最多尝试30次（15秒）
-    
-    function tryJoin() {
-        attempts++;
-        console.log("🔄 尝试加入，第", attempts, "次，roomId:", roomId, "阵营:", faction);
-        
-        if (!roomId) {
-            console.log("❌ roomId 为空，无法加入");
-            updateStatus("❌ 房间号错误，请重新设置");
-            return;
-        }
-        
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            console.log("✅ WebSocket 已连接，发送 join_room");
-            var isSpectator = (faction === "spectator");
-            ws.send(JSON.stringify({
-                type: 'join_room',
-                roomId: roomId,
-                clientId: wsClientId || generateClientId(),
-                isSpectator: isSpectator
-            }));
-            if (isSpectator) {
-                updateStatus("👀 正在加入观战...");
-            } else {
-                updateStatus("🎮 正在加入游戏...");
-            }
-        } else if (attempts < maxAttempts) {
-            console.log("⏳ WebSocket 未就绪 (状态:", ws ? ws.readyState : "无", ")，等待中...");
-            setTimeout(function() { tryJoin(); }, 500);
-        } else {
-            console.log("❌ 连接超时");
-            updateStatus("❌ 连接超时，请刷新重试");
-        }
-    }
-    
-    tryJoin();
-}
+
 function resetGame(){
     if(!confirm("重置所有靶场状态？")) return;
     for(var ri=0; ri<DEPARTMENTS.length; ri++){
@@ -1614,11 +1538,7 @@ function closeSkillPanel(){
 function action(deptId, deptName){
   if(!currentFaction){ alert("请先选择阵营！"); return; }
   if(!isGameActive){ alert("⏰ 游戏已结束！请等待房间重置"); return; }
-  // ⚠️ 观战者不能操作
-    if(currentFaction === "spectator"){
-        alert("👀 观战模式不能操作！");
-        return;
-    }
+  
   if(currentFaction === "blue"){
     var targetDept = null;
     for(var ri=0; ri<DEPARTMENTS.length; ri++){
