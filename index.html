@@ -464,17 +464,32 @@ var wsRoomId = "";
 var wsClientId = "";
 
 function initWebSocket() {
-    if (ws && ws.readyState === WebSocket.OPEN) return;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log("⚠️ WebSocket 已存在且打开");
+        // 如果已经打开但还没加入房间，尝试加入
+        if (roomId) {
+            joinRoom(roomId);
+        }
+        return;
+    }
     
-    // 使用 Railway 部署的 URL
     const wsUrl = getWebSocketUrl();
+    console.log("🔗 正在连接 WebSocket:", wsUrl);
     ws = new WebSocket(wsUrl);
     
     ws.onopen = function() {
         wsConnected = true;
         console.log("✅ WebSocket 已连接");
-        // 自动加入房间
-        joinRoom(roomId);
+        console.log("📦 当前房间号:", roomId);
+        // 延迟一下确保连接稳定
+        setTimeout(function() {
+            if (roomId) {
+                console.log("📤 发送 join_room:", roomId);
+                joinRoom(roomId);
+            } else {
+                console.log("⚠️ roomId 为空，无法加入房间");
+            }
+        }, 100);
     };
     
     ws.onmessage = function(event) {
@@ -776,7 +791,8 @@ function confirmDiff(){
     if(inputRoomId && inputRoomId.length >= 4){
         roomId = inputRoomId;
         document.getElementById("room-id-display").textContent = "🏠 房间: " + roomId;
-        
+        console.log("📦 加入已有房间:", roomId);
+        // 加载本地状态
         var saved = localStorage.getItem("cyberDuel_state");
         if(saved){
             try{
@@ -791,9 +807,12 @@ function confirmDiff(){
         document.getElementById("room-id-display").textContent = "🏠 房间: " + roomId;
         applyDiff(val);
         saveGameState();
+        console.log("📦 创建新房间:", roomId);
     }
     
-    // 初始化 WebSocket
+    console.log("📦 最终房间号:", roomId);
+    
+    // ⚠️ 重要：先初始化 WebSocket，再进入阵营选择
     initWebSocket();
     
     showFaction();
