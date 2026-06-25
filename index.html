@@ -489,27 +489,20 @@ function initWebSocket() {
     console.log("🔗 正在连接 WebSocket:", wsUrl);
     ws = new WebSocket(wsUrl);
     
-    ws.onopen = function() {
-        wsConnected = true;
-        console.log("✅ WebSocket 已连接");
-        console.log("📦 当前房间号:", roomId);
-        
-        // 如果是观战模式，由 pick 函数处理
-        if (currentFaction === "spectator") {
-            // 不在这里自动加入，由 waitForWebSocketAndJoin 处理
-            return;
+   ws.onopen = function() {
+    wsConnected = true;
+    console.log("✅ WebSocket 已连接");
+    console.log("📦 当前房间号:", roomId);
+    // 自动加入房间
+    setTimeout(function() {
+        if (roomId) {
+            console.log("📤 发送 join_room:", roomId);
+            joinRoom(roomId);
+        } else {
+            console.log("⚠️ roomId 为空，无法加入房间");
         }
-        
-        // 非观战模式，自动加入房间
-        setTimeout(function() {
-            if (roomId) {
-                console.log("📤 发送 join_room:", roomId);
-                joinRoom(roomId);
-            } else {
-                console.log("⚠️ roomId 为空，无法加入房间");
-            }
-        }, 100);
-    };
+    }, 100);
+};
     
     ws.onmessage = function(event) {
         try {
