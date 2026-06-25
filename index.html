@@ -477,10 +477,11 @@ var wsClientId = "";
 function initWebSocket() {
     if (ws && ws.readyState === WebSocket.OPEN) {
         console.log("⚠️ WebSocket 已存在且打开");
-        // 如果已经打开但还没加入房间，尝试加入
-        if (roomId) {
-            joinRoom(roomId);
-        }
+        return;
+    }
+    
+    if (ws && ws.readyState === WebSocket.CONNECTING) {
+        console.log("⏳ WebSocket 正在连接中...");
         return;
     }
     
@@ -492,7 +493,14 @@ function initWebSocket() {
         wsConnected = true;
         console.log("✅ WebSocket 已连接");
         console.log("📦 当前房间号:", roomId);
-        // 延迟一下确保连接稳定
+        
+        // 如果是观战模式，由 pick 函数处理
+        if (currentFaction === "spectator") {
+            // 不在这里自动加入，由 waitForWebSocketAndJoin 处理
+            return;
+        }
+        
+        // 非观战模式，自动加入房间
         setTimeout(function() {
             if (roomId) {
                 console.log("📤 发送 join_room:", roomId);
@@ -512,9 +520,9 @@ function initWebSocket() {
         }
     };
     
-    ws.onclose = function() {
+    ws.onclose = function(event) {
         wsConnected = false;
-        console.log("🔌 WebSocket 已断开，尝试重连...");
+        console.log("🔌 WebSocket 已断开，代码:", event.code);
         setTimeout(initWebSocket, 3000);
     };
     
@@ -539,7 +547,13 @@ function handleWebSocketMessage(data) {
     
     var statusMsg = "";
     if (data.isSpectator) {
-        statusMsg = "👀 观战模式 · 等待游戏开始... (" + data.playerCount + "/" + data.maxPlayers + " 玩家)";
+        statusMsg = "👀 观战模式 · 已加入！(" + data.playerCount + "/" + data.maxPlayers + " 玩家)";
+        // 更新观战者计数
+        var spectatorEl = document.getElementById("spectator-count");
+        if (spectatorEl) {
+            spectatorEl.style.display = "inline";
+            spectatorEl.textContent = "👀 观战: " + data.spectatorCount + "人";
+        }
     } else if (data.playerCount === data.maxPlayers) {
         statusMsg = "👥 房间已满员（" + data.playerCount + "/" + data.maxPlayers + "），游戏开始！";
     } else {
@@ -547,8 +561,15 @@ function handleWebSocketMessage(data) {
     }
     updateStatus(statusMsg);
     break;
-    
+
 case 'room_update':
+    if (data.spectatorCount !== undefined) {
+        var spectatorEl = document.getElementById("spectator-count");
+        if (spectatorEl) {
+            spectatorEl.style.display = "inline";
+            spectatorEl.textContent = "👀 观战: " + data.spectatorCount + "人";
+        }
+    }
     if (data.playerCount === data.maxPlayers) {
         updateStatus("👥 房间已满员（" + data.playerCount + "/" + data.maxPlayers + "），游戏开始！");
     } else {
@@ -1131,8 +1152,45 @@ function pick(f){
         updateStatus("🛡️ 蓝方防御模式 · 点击已攻破部门进行防御");
     }
     render();
+  // ✅ 如果是观战模式，等待 WebSocket 连接后发送 join_room
+    if (f === "spectator") {
+        waitForWebSocketAndJoin();
+    }
 }
-
+function waitForWebSocketAndJoin() {
+    var attempts = 0;
+    var maxAttempts = 20; // 最多尝试20次（10秒）
+    
+    function tryJoin() {
+        attempts++;
+        console.log("🔄 尝试加入观战，第", attempts, "次，roomId:", roomId);
+        
+        if (!roomId) {
+            console.log("❌ roomId 为空，无法加入");
+            updateStatus("❌ 房间号错误，请重新设置");
+            return;
+        }
+        
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            console.log("✅ WebSocket 已连接，发送 join_room");
+            ws.send(JSON.stringify({
+                type: 'join_room',
+                roomId: roomId,
+                clientId: wsClientId || generateClientId(),
+                isSpectator: true
+            }));
+            updateStatus("👀 正在加入观战...");
+        } else if (attempts < maxAttempts) {
+            console.log("⏳ WebSocket 未就绪，等待中...");
+            setTimeout(tryJoin, 500);
+        } else {
+            console.log("❌ 连接超时");
+            updateStatus("❌ 连接超时，请刷新重试");
+        }
+    }
+    
+    tryJoin();
+}
 function resetGame(){
     if(!confirm("重置所有靶场状态？")) return;
     for(var ri=0; ri<DEPARTMENTS.length; ri++){
