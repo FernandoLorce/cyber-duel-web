@@ -521,22 +521,24 @@ function getWebSocketUrl() {
 }
 function handleWebSocketMessage(data) {
     switch(data.type) {
-        case 'room_joined':
-            wsRoomId = data.roomId;
-            wsClientId = data.clientId;
-            document.getElementById("room-id-display").textContent = "🏠 房间: " + data.roomId;
-            if (data.playerCount === 2) {
-                updateStatus("👥 房间已满员，游戏开始！");
-            } else {
-                updateStatus("👤 等待对手加入...");
-            }
-            break;
-            
-        case 'room_update':
-            if (data.playerCount === 2) {
-                updateStatus("👥 对手已加入，游戏开始！");
-            }
-            break;
+       case 'room_joined':
+    wsRoomId = data.roomId;
+    wsClientId = data.clientId;
+    document.getElementById("room-id-display").textContent = "🏠 房间: " + data.roomId;
+    if (data.playerCount === data.maxPlayers) {
+        updateStatus("👥 房间已满员（" + data.playerCount + "/" + data.maxPlayers + "），游戏开始！");
+    } else {
+        updateStatus("👤 等待更多玩家加入... (" + data.playerCount + "/" + data.maxPlayers + ")");
+    }
+    break;
+    
+case 'room_update':
+    if (data.playerCount === data.maxPlayers) {
+        updateStatus("👥 房间已满员（" + data.playerCount + "/" + data.maxPlayers + "），游戏开始！");
+    } else {
+        updateStatus("👤 等待更多玩家加入... (" + data.playerCount + "/" + data.maxPlayers + ")");
+    }
+    break;
             
         case 'state_update':
             var newState = data.state;
@@ -1086,11 +1088,11 @@ function pick(f){
   if(f === "red"){
     lb.innerHTML = "🔥 RED · 攻击方";
     lb.className = "fl r";
-    updateStatus("🔥 红方攻击模式 · 点击部门选择攻击技能");
+    updateStatus("🔥 红方攻击模式 · 等待其他玩家加入...");
   } else {
     lb.innerHTML = "🛡️ BLUE · 防守方";
     lb.className = "fl b";
-    updateStatus("🛡️ 蓝方防御模式 · 点击已攻破部门进行防御");
+    updateStatus("🛡️ 蓝方防御模式 · 等待其他玩家加入...");
   }
   render();
 }
