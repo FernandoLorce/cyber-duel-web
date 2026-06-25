@@ -1112,22 +1112,8 @@ function pick(f){
     byId("s-faction").classList.add("hide");
     byId("s-battle").classList.remove("hide");
     
+    // 先初始化 WebSocket
     initWebSocket();
-    
-    // 如果是观战模式，发送观战请求
-    if (f === "spectator") {
-        // 等待 WebSocket 连接后发送观战消息
-        setTimeout(function() {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                    type: 'join_room',
-                    roomId: roomId,
-                    clientId: wsClientId || generateClientId(),
-                    isSpectator: true
-                }));
-            }
-        }, 500);
-    }
     
     loadGameState();
     
@@ -1144,26 +1130,24 @@ function pick(f){
     } else if(f === "spectator") {
         lb.innerHTML = "👀 观战模式";
         lb.className = "fl neutral";
-        updateStatus("👀 观战模式 · 实时观看对战");
-        // 观战者不能操作
+        updateStatus("👀 观战模式 · 正在连接...");
     } else {
         lb.innerHTML = "🛡️ BLUE · 防守方";
         lb.className = "fl b";
         updateStatus("🛡️ 蓝方防御模式 · 点击已攻破部门进行防御");
     }
     render();
-  // ✅ 如果是观战模式，等待 WebSocket 连接后发送 join_room
-    if (f === "spectator") {
-        waitForWebSocketAndJoin();
-    }
+    
+    // ✅ 修改：无论是玩家还是观战者，都等待 WebSocket 连接后加入房间
+    waitForWebSocketAndJoin(f);
 }
-function waitForWebSocketAndJoin() {
+function waitForWebSocketAndJoin(faction) {
     var attempts = 0;
-    var maxAttempts = 20; // 最多尝试20次（10秒）
+    var maxAttempts = 30; // 最多尝试30次（15秒）
     
     function tryJoin() {
         attempts++;
-        console.log("🔄 尝试加入观战，第", attempts, "次，roomId:", roomId);
+        console.log("🔄 尝试加入，第", attempts, "次，roomId:", roomId, "阵营:", faction);
         
         if (!roomId) {
             console.log("❌ roomId 为空，无法加入");
@@ -1173,16 +1157,21 @@ function waitForWebSocketAndJoin() {
         
         if (ws && ws.readyState === WebSocket.OPEN) {
             console.log("✅ WebSocket 已连接，发送 join_room");
+            var isSpectator = (faction === "spectator");
             ws.send(JSON.stringify({
                 type: 'join_room',
                 roomId: roomId,
                 clientId: wsClientId || generateClientId(),
-                isSpectator: true
+                isSpectator: isSpectator
             }));
-            updateStatus("👀 正在加入观战...");
+            if (isSpectator) {
+                updateStatus("👀 正在加入观战...");
+            } else {
+                updateStatus("🎮 正在加入游戏...");
+            }
         } else if (attempts < maxAttempts) {
-            console.log("⏳ WebSocket 未就绪，等待中...");
-            setTimeout(tryJoin, 500);
+            console.log("⏳ WebSocket 未就绪 (状态:", ws ? ws.readyState : "无", ")，等待中...");
+            setTimeout(function() { tryJoin(); }, 500);
         } else {
             console.log("❌ 连接超时");
             updateStatus("❌ 连接超时，请刷新重试");
