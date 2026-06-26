@@ -658,9 +658,7 @@ function showBreachAlert(deptId, deptName, skill, timeLeft){
  // 检查是否已存在该部门的警报，如果存在则更新，否则新建
   if(window._breachAlerts[deptId]){
     // 更新已有警报
-    window._breachAlerts[deptId].timeLeft = timeLeft;
-    window._breachAlerts[deptId].startTime = Date.now();
-    window._breachAlerts[deptId].totalTime = timeLeft;
+   
     window._breachAlerts[deptId].deptName = deptName;
     window._breachAlerts[deptId].skill = skill;
   } else {
