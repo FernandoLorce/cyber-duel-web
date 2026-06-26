@@ -542,30 +542,19 @@ case 'room_update':
             
         case 'state_update':
             var newState = data.state;
-            var changed = false;
             for(var ri=0; ri<DEPARTMENTS.length; ri++){
                 for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
                     var dept = DEPARTMENTS[ri].depts[di];
                     var found = newState.depts.find(function(s){ return s.id === dept.id; });
-                    if(found && found.breached !== dept.breached){
-                dept.breached = found.breached;
-                changed = true;
-            }
+                    if(found) dept.breached = found.breached;
                 }
             }
-         // 只有本地没启动计时器时才同步 gameTimeLeft（新人加入时）
-    if(!gameTimer && newState.gameActive){
-        gameTimeLeft = newState.timeLeft;
-        isGameActive = true;
-        if(!gameTimer) startGameTimer();
-    } else if(gameTimer && newState.timeLeft < gameTimeLeft - 1) {
-        // 单向校正：收到的值比自己小 1 秒以上才跟（只会减少，不回跳）
-        gameTimeLeft = newState.timeLeft;
-        updateTimerDisplay();
-    }
-    
-    // 只有 breach 状态真的变了才 render
-    if(changed) render();
+            isGameActive = newState.gameActive;
+            gameTimeLeft = newState.timeLeft;
+            diffValue = newState.diffValue;
+            updateTimerDisplay();
+            render();
+            updateStatus("🔄 状态已同步");
             break;
             
         case 'game_over':
@@ -584,9 +573,6 @@ case 'room_update':
             if(window._pendingBreach && window._pendingBreach.deptId === data.deptId){
                 window._pendingBreach = null;
             }
-             if(window._breachAlerts && window._breachAlerts[data.deptId]){
-        delete window._breachAlerts[data.deptId];
-    }
             for(var ri=0; ri<DEPARTMENTS.length; ri++){
                 for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
                     if(DEPARTMENTS[ri].depts[di].id === data.deptId){
@@ -663,6 +649,8 @@ function showBreachAlert(deptId, deptName, skill, timeLeft){
   }
  // 检查是否已存在该部门的警报，如果存在则更新，否则新建
   if(window._breachAlerts[deptId]){
+    // 更新已有警报
+    
     window._breachAlerts[deptId].deptName = deptName;
     window._breachAlerts[deptId].skill = skill;
   } else {
@@ -736,23 +724,31 @@ function showBreachAlert(deptId, deptName, skill, timeLeft){
         }
         
         if(isBreached || remaining <= 0){
-          
+          if(alert.targetDeptEl){
+            alert.targetDeptEl.classList.remove("breach-alert");
+            alert.targetDeptEl.style.background = "";
+            alert.targetDeptEl.style.borderColor = "";
+            alert.targetDeptEl.style.boxShadow = "";
+            if(alert.targetDeptEl._originalHTML){
+              alert.targetDeptEl.innerHTML = alert.targetDeptEl._originalHTML;
+              alert.targetDeptEl._originalHTML = null;
+            }
+          }
+          if(alert.card){
+            alert.card.classList.remove("breach-alert");
+            alert.card.style.borderColor = "";
+            alert.card.style.boxShadow = "";
+          }
           toRemove.push(id);
-          
+          if(window._pendingBreach && window._pendingBreach.deptId === id){
+            window._pendingBreach.timeLeft = 0;
+            window._pendingBreach = null;
+          }
         } else {
           alert.timeLeft = remaining;
           if(window._pendingBreach && window._pendingBreach.deptId === id){
             window._pendingBreach.timeLeft = remaining;
           }
-          // 每次都重新查找 targetDeptEl（可能已被 render() 重建）
-    var deptEls = document.querySelectorAll(".dept-item");
-    for(var ei=0; ei<deptEls.length; ei++){
-        var attr = deptEls[ei].getAttribute("onclick");
-        if(attr && attr.indexOf(id) > -1){
-            alert.targetDeptEl = deptEls[ei];
-            break;
-        }
-    }
           if(alert.targetDeptEl){
             alert.targetDeptEl.innerHTML = "<span style='font-size:20px;font-weight:900;color:#dc2626;font-family:\"Orbitron\",monospace;animation:pulse-alert 0.5s ease-in-out infinite;'>🔴 "+Math.ceil(remaining)+"s</span>";
           }
@@ -762,10 +758,7 @@ function showBreachAlert(deptId, deptName, skill, timeLeft){
       for(var i=0; i<toRemove.length; i++){
         delete window._breachAlerts[toRemove[i]];
       }
-      if(toRemove.length > 0){
-    render();
-}
-
+      
       var hasAlerts = false;
       for(var key in window._breachAlerts){
         hasAlerts = true;
@@ -857,11 +850,14 @@ function startGameTimer(){
   gameTimeLeft = 600;
   updateTimerDisplay();
   saveGameState();
- var tickCount = 0;
-gameTimer = setInterval(function(){
+  var syncCounter = 0;
+  gameTimer = setInterval(function(){
     gameTimeLeft--;
-  updateTimerDisplay();
-        saveGameState();  
+    updateTimerDisplay();
+    syncCounter++;
+    if(syncCounter % 5 === 0) {
+        saveGameState();  // 每 10 秒同步一次，不再每秒对战
+    }
     
     if(gameTimeLeft <= 0){
     clearInterval(gameTimer);
@@ -1225,7 +1221,11 @@ function render(){
       var isBreached = dept.breached;
       
       var underAlert = window._breachAlerts && window._breachAlerts[dept.id];
-      
+      if(underAlert){
+        html += "<div class='dept-item breach-alert' onclick='action(\""+dept.id+"\",\""+dept.name+"\")'>";
+        html += "<span style='font-size:20px;font-weight:900;color:#dc2626;font-family:\"Orbitron\",monospace;animation:pulse-alert 0.5s ease-in-out infinite;'>🔴 "+Math.ceil(underAlert.timeLeft)+"s</span>";
+        html += "</div>";
+      } else {
         var statusIcon = isBreached ? "💀" : "🟢";
         var extraClass = isBreached ? "breached" : "";
         html += "<div class='dept-item "+extraClass+"' onclick='action(\""+dept.id+"\",\""+dept.name+"\")'>";
@@ -1234,7 +1234,7 @@ function render(){
         html += "<span class='dlv'>Lv"+(dj+1)+"</span>";
         html += "<span class='dstatus'>"+statusIcon+"</span>";
         html += "</div>";
-      
+      }
     }
     html += "</div></div>";
   }
