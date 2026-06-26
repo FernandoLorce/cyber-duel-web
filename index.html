@@ -521,83 +521,112 @@ function getWebSocketUrl() {
 }
 function handleWebSocketMessage(data) {
     switch(data.type) {
-       case 'room_joined':
-    wsRoomId = data.roomId;
-    wsClientId = data.clientId;
-    document.getElementById("room-id-display").textContent = "🏠 房间: " + data.roomId;
-    if (data.playerCount === data.maxPlayers) {
-        updateStatus("👥 房间已满员（" + data.playerCount + "/" + data.maxPlayers + "），游戏开始！");
-    } else {
-        updateStatus("👤 等待更多玩家加入... (" + data.playerCount + "/" + data.maxPlayers + ")");
-    }
-    break;
-    
-case 'room_update':
-    if (data.playerCount === data.maxPlayers) {
-        updateStatus("👥 房间已满员（" + data.playerCount + "/" + data.maxPlayers + "），游戏开始！");
-    } else {
-        updateStatus("👤 等待更多玩家加入... (" + data.playerCount + "/" + data.maxPlayers + ")");
-    }
-    break;
+        case 'room_joined':
+            wsRoomId = data.roomId;
+            wsClientId = data.clientId;
+            document.getElementById("room-id-display").textContent = "🏠 房间: " + data.roomId;
+            if (data.playerCount === data.maxPlayers) {
+                updateStatus("👥 房间已满员（" + data.playerCount + "/" + data.maxPlayers + "），游戏开始！");
+            } else {
+                updateStatus("👤 等待更多玩家加入... (" + data.playerCount + "/" + data.maxPlayers + ")");
+            }
+            if (data.state) {
+                applyServerState(data.state);
+            }
+            break;
             
-        case 'state_update':
-            var newState = data.state;
-            for(var ri=0; ri<DEPARTMENTS.length; ri++){
-                for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
-                    var dept = DEPARTMENTS[ri].depts[di];
-                    var found = newState.depts.find(function(s){ return s.id === dept.id; });
-                    if(found) dept.breached = found.breached;
+        case 'room_update':
+            if (data.playerCount === data.maxPlayers) {
+                updateStatus("👥 房间已满员（" + data.playerCount + "/" + data.maxPlayers + "），游戏开始！");
+            } else {
+                updateStatus("👤 等待更多玩家加入... (" + data.playerCount + "/" + data.maxPlayers + ")");
+            }
+            break;
+            
+        case 'game_started':
+            if (data.state) {
+                applyServerState(data.state);
+            }
+            break;
+            
+        case 'state_sync':
+            // ✅ 完整状态同步（包括攻击状态）
+            if (data.state) {
+                applyServerState(data.state);
+                // ✅ 同步攻击状态
+                if (data.state.breachAlerts) {
+                    syncBreachAlerts(data.state.breachAlerts);
                 }
             }
-            isGameActive = newState.gameActive;
-            gameTimeLeft = newState.timeLeft;
-            diffValue = newState.diffValue;
-            updateTimerDisplay();
             render();
-            updateStatus("🔄 状态已同步");
+            break;
+            
+        case 'breach_alert':
+            // ✅ 使用服务器数据更新攻击状态
+            if (data.breachAlerts) {
+                syncBreachAlerts(data.breachAlerts);
+            }
+            render();
+            // 显示攻击警告
+            if (data.deptId && data.deptName) {
+                updateStatus("🔴 警报！" + data.deptName + " 正在被攻击！剩余 " + Math.ceil(data.timeLeft) + " 秒");
+                // 播放闪烁效果（不启动本地计时器）
+                flashBreachAlert(data.deptId);
+            }
+            break;
+            
+        case 'breach_defended':
+            if (data.breachAlerts) {
+                syncBreachAlerts(data.breachAlerts);
+            }
+            // 清除本地状态
+            if(window._pendingBreach && window._pendingBreach.deptId === data.deptId){
+                window._pendingBreach = null;
+            }
+            // 标记部门未沦陷
+            for(var ri=0; ri<DEPARTMENTS.length; ri++){
+                for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
+                    if(DEPARTMENTS[ri].depts[di].id === data.deptId){
+                        DEPARTMENTS[ri].depts[di].breached = false;
+                        delete DEPARTMENTS[ri].depts[di]._attackedBy;
+                        break;
+                    }
+                }
+            }
+            clearBreachAlertUI(data.deptId);
+            render();
+            updateStatus("🛡️ " + data.deptId + " 已被防御");
             break;
             
         case 'game_over':
             isGameActive = false;
             gameTimeLeft = 0;
+            if(gameTimer){
+                clearInterval(gameTimer);
+                gameTimer = null;
+            }
             updateTimerDisplay();
             render();
             showGameOver();
             break;
             
-        case 'breach_alert':
-            showBreachAlert(data.deptId, data.deptName, data.skill, data.timeLeft);
-            break;
-            
-        case 'breach_defended':
-            if(window._pendingBreach && window._pendingBreach.deptId === data.deptId){
-                window._pendingBreach = null;
-            }
-            for(var ri=0; ri<DEPARTMENTS.length; ri++){
-                for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
-                    if(DEPARTMENTS[ri].depts[di].id === data.deptId){
-                        DEPARTMENTS[ri].depts[di].breached = false;
-                        break;
-                    }
-                }
-            }
-            render();
-            break;
-            
-        case 'reset_to_diff':
+        case 'reset_game':
             for(var ri=0; ri<DEPARTMENTS.length; ri++){
                 for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
                     DEPARTMENTS[ri].depts[di].breached = false;
+                    delete DEPARTMENTS[ri].depts[di]._attackedBy;
                 }
             }
             isGameActive = false;
             gameTimeLeft = 600;
-            roomId = "";
-            localStorage.removeItem("cyberDuel_state");
             if(gameTimer){
                 clearInterval(gameTimer);
                 gameTimer = null;
             }
+            window._breachAlerts = {};
+            window._pendingBreach = null;
+            render();
+            updateStatus("🔄 已重置战场，请重新设置差值");
             showDiff();
             break;
             
@@ -606,7 +635,110 @@ case 'room_update':
             break;
     }
 }
+// ✅ 同步服务器攻击状态
+function syncBreachAlerts(serverAlerts) {
+    if (!serverAlerts) {
+        window._breachAlerts = {};
+        window._pendingBreach = null;
+        return;
+    }
+    
+    window._breachAlerts = {};
+    for (const deptId in serverAlerts) {
+        const alert = serverAlerts[deptId];
+        window._breachAlerts[deptId] = {
+            deptName: alert.deptName,
+            timeLeft: alert.timeLeft,
+            totalTime: alert.totalTime,
+            startTime: alert.startTime,
+            skill: alert.skill,
+            targetDeptEl: null,
+            card: null
+        };
+    }
+    
+    // 更新 _pendingBreach
+    const keys = Object.keys(window._breachAlerts);
+    if (keys.length > 0) {
+        const firstKey = keys[0];
+        window._pendingBreach = window._breachAlerts[firstKey];
+        window._pendingBreach.deptId = firstKey;
+    } else {
+        window._pendingBreach = null;
+    }
+}
 
+// ✅ 应用服务器状态
+function applyServerState(state) {
+    if (!state) return;
+    
+    if (state.depts) {
+        for(var ri=0; ri<DEPARTMENTS.length; ri++){
+            for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
+                var dept = DEPARTMENTS[ri].depts[di];
+                var found = state.depts.find(function(s){ return s.id === dept.id; });
+                if(found) {
+                    dept.breached = found.breached;
+                    if (found._attackedBy) {
+                        dept._attackedBy = found._attackedBy;
+                    }
+                }
+            }
+        }
+    }
+    
+    isGameActive = state.gameActive;
+    gameTimeLeft = state.timeLeft;
+    diffValue = state.diffValue;
+    
+    updateTimerDisplay();
+    render();
+}
+
+// ✅ 闪烁攻击警告（不启动本地计时器）
+function flashBreachAlert(deptId) {
+    var deptItems = document.querySelectorAll(".dept-item");
+    for(var i=0; i<deptItems.length; i++){
+        var item = deptItems[i];
+        var onclickAttr = item.getAttribute("onclick");
+        if(onclickAttr && onclickAttr.indexOf(deptId) > -1){
+            item.classList.add("breach-alert");
+            break;
+        }
+    }
+    
+    var rangeId = deptId.split("-")[0];
+    var card = document.getElementById("rc-" + rangeId);
+    if(card){
+        card.classList.add("breach-alert");
+    }
+}
+
+// ✅ 清除攻击警告UI
+function clearBreachAlertUI(deptId) {
+    var deptItems = document.querySelectorAll(".dept-item");
+    for(var i=0; i<deptItems.length; i++){
+        var item = deptItems[i];
+        var onclickAttr = item.getAttribute("onclick");
+        if(onclickAttr && onclickAttr.indexOf(deptId) > -1){
+            item.classList.remove("breach-alert");
+            item.classList.remove("under-attack");
+            item.style.background = "";
+            item.style.borderColor = "";
+            item.style.boxShadow = "";
+            break;
+        }
+    }
+    
+    var rangeId = deptId.split("-")[0];
+    var card = document.getElementById("rc-" + rangeId);
+    if(card){
+        card.classList.remove("breach-alert");
+        card.classList.remove("under-attack");
+        card.style.borderColor = "";
+        card.style.boxShadow = "";
+    }
+}
 function joinRoom(roomId) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
         console.log("⏳ WebSocket 未连接，稍后重试...");
@@ -1657,6 +1789,7 @@ function confirmAttack(){
 }
 
 // ===================== 执行攻击 =====================
+// ===================== 执行攻击 =====================
 function startAttack(dept, deptName, skill){
   var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   var attackCode = "";
@@ -1671,7 +1804,7 @@ function startAttack(dept, deptName, skill){
   
   // Lv.3 不限时
   if(isLv3){
-    attackTotalTime = 9999; // 超大值，表示不限时
+    attackTotalTime = 9999;
   }
   
   var deptItems = document.querySelectorAll(".dept-item");
@@ -1711,117 +1844,58 @@ function startAttack(dept, deptName, skill){
     totalTime: attackTotalTime,
     deptId: dept.id,
     onSuccess: function(){
+      // ✅ 不再启动本地计时器，通过 WebSocket 通知服务器
       if(targetDeptEl){
         targetDeptEl.classList.remove("under-attack");
-        targetDeptEl.classList.add("breach-countdown");
-         // 所有等级统一显示倒计时
-    targetDeptEl.innerHTML = "<span style='font-size:20px;font-weight:900;color:#d97706;font-family:\"Orbitron\",monospace;'>\u23F3"+skill.time+"s</span>";
-  }
+      }
       if(card){
         card.classList.remove("under-attack");
-        card.classList.add("breach-countdown");
       }
-      updateStatus("\u23F3 红方攻击成功！" + deptName + " 进入沦陷倒计时 " + skill.time + "s");
-      // ✅ 修改：使用 _breachAlerts 而不是 _pendingBreach
-  if(!window._breachAlerts){
-    window._breachAlerts = {};
-  }
-  window._breachAlerts[dept.id] = {
-    deptName: deptName,
-    timeLeft: skill.time,
-    targetDeptEl: targetDeptEl,
-    card: card,
-    startTime: Date.now(),
-    totalTime: skill.time,
-    skill: skill
-  };
-  
-  // 保留 _pendingBreach 用于兼容，但只作为快捷引用
-  window._pendingBreach = window._breachAlerts[dept.id];
+      
+      // ✅ 发送攻击通知到服务器（服务器统一管理时间）
       if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({
-        type: "breach_alert",
-        deptId: dept.id,
-        deptName: deptName,
-        skill: {
+        ws.send(JSON.stringify({
+          type: "breach_alert",
+          deptId: dept.id,
+          deptName: deptName,
+          skill: {
             name: skill.name,
             level: skill.level,
             time: skill.time,
             id: skill.id,
             attackTimer: skill.attackTimer,
             repairTimer: skill.repairTimer
-        },
-        timeLeft: skill.time
-    }));
-}
+          },
+          timeLeft: skill.time
+        }));
+      }
       
-      var breachStartTime = Date.now();
-      var breachTotal = skill.time;
-      var isBreachCompleted = false; // ✅ 添加标志防止重复执行
-      var animationId = null; // ✅ 存储动画帧ID
-      (function updateBreachTimer(){
-        var elapsed = (Date.now() - breachStartTime) / 1000;
-        var remaining = Math.max(0, breachTotal - elapsed);
-         // ✅ 修改：检查 _breachAlerts 中是否存在该部门
-    if(!window._breachAlerts || !window._breachAlerts[dept.id]){
-      if(targetDeptEl){ targetDeptEl.classList.remove("breach-countdown"); targetDeptEl.innerHTML = "\uD83D\uDFE2 " + deptName; }
-      if(card){ card.classList.remove("breach-countdown"); }
-      updateStatus("\uD83D\uDEE1\uFE0F " + deptName + " 已被蓝方成功防御");
-      return;
-    }
-    
-    // 更新剩余时间
-    if(window._breachAlerts[dept.id]){
-      window._breachAlerts[dept.id].timeLeft = remaining;
-    }
-    var displaySeconds = Math.ceil(remaining);
-        if(targetDeptEl && !dept.breached){ 
-  // 所有等级统一显示倒计时
-  targetDeptEl.innerHTML = "<span style='font-size:20px;font-weight:900;color:#d97706;font-family:\"Orbitron\",monospace;'>\u23F3"+Math.ceil(remaining)+"s</span>";
-}
-        if(remaining > 0.1 && !dept.breached && !isBreachCompleted){ requestAnimationFrame(updateBreachTimer); }
-        else if(remaining <= 0.1 && !dept.breached && !isBreachCompleted){
-            isBreachCompleted = true; // ✅ 标记已完成，防止重复执行
-          dept.breached = true;
-          dept._attackedBy = {
-            id: skill.id,
-            name: skill.name,
-            repairTimer: skill.repairTimer,
-            attackTimer: skill.attackTimer,
-            time: skill.time,
-            level: skill.level
-          };
-          if(targetDeptEl){ targetDeptEl.classList.remove("breach-countdown"); targetDeptEl.classList.add("breached"); targetDeptEl.innerHTML = "\uD83D\uDC80 " + deptName; }
-          if(card){ card.classList.remove("breach-countdown"); card.classList.add("breached"); }
-          actionLog.push("\uD83D\uDD34 红方使用 ["+skill.name+"] 攻破了 "+deptName);
-          // ✅ 修改：从 _breachAlerts 中移除
-      if(window._breachAlerts && window._breachAlerts[dept.id]){
-        delete window._breachAlerts[dept.id];
+      // 本地立即更新状态（服务器会同步回来确认）
+      updateStatus("⚡ 攻击已发起，等待服务器确认...");
+      
+      // 在部门上显示倒计时（本地UI反馈）
+      if(targetDeptEl){
+        targetDeptEl.classList.add("breach-countdown");
+        targetDeptEl.innerHTML = "<span style='font-size:20px;font-weight:900;color:#d97706;font-family:\"Orbitron\",monospace;'>⏳ "+skill.time+"s</span>";
       }
-      if(window._pendingBreach && window._pendingBreach.deptId === dept.id){
-        window._pendingBreach = null;
+      if(card){
+        card.classList.add("breach-countdown");
       }
-          saveGameState(); render();
-          updateStatus("\uD83D\uDCA5 " + deptName + " 已被红方攻破");
-          window._pendingBreach = null;
-          checkVictory();
-        }
-        // ✅ 如果部门已被攻破（可能是其他方式），清理状态
-  else if(dept.breached && window._breachAlerts && window._breachAlerts[dept.id]){
-    delete window._breachAlerts[dept.id];
-    if(window._pendingBreach && window._pendingBreach.deptId === dept.id){
-      window._pendingBreach = null;
-    }
-  }
-      })();
     },
     onTimeout: function(){
       if(targetDeptEl){
         targetDeptEl.classList.remove("under-attack");
-        if(targetDeptEl._originalHTML){ targetDeptEl.innerHTML = targetDeptEl._originalHTML; targetDeptEl._originalHTML = null; }
+        targetDeptEl.classList.remove("breach-countdown");
+        if(targetDeptEl._originalHTML){
+          targetDeptEl.innerHTML = targetDeptEl._originalHTML;
+          targetDeptEl._originalHTML = null;
+        }
       }
-      if(card) card.classList.remove("under-attack");
-      updateStatus("\u23F0 红方攻击失败，" + deptName);
+      if(card){
+        card.classList.remove("under-attack");
+        card.classList.remove("breach-countdown");
+      }
+      updateStatus("⏰ 攻击超时，" + deptName + " 攻击失败");
     }
   };
   
@@ -1849,23 +1923,26 @@ function startAttack(dept, deptName, skill){
 }
 
 // ===================== 防御任务（修复） =====================
+// ===================== 防御任务（修复） =====================
 function showDefenseTask(deptName, skill){
-  // ✅ 修改：检查 _breachAlerts 中是否有该部门
+  // ✅ 检查服务器攻击状态
   var pending = null;
-  for(var id in window._breachAlerts){
-    if(window._breachAlerts[id].deptName === deptName){
-      pending = window._breachAlerts[id];
-      pending.deptId = id;
-      break;
-    }
+  var targetDeptId = window._targetDeptId;
+  
+  // 从服务器同步的攻击状态中查找
+  if(window._breachAlerts && window._breachAlerts[targetDeptId]){
+    pending = window._breachAlerts[targetDeptId];
+    pending.deptId = targetDeptId;
   }
+  
   var isBreachDefense = pending !== null;
 
+  // 如果不是正在被攻击，检查是否已沦陷需要修复
   if(!isBreachDefense){
     var foundDept = null;
     for(var ri=0; ri<DEPARTMENTS.length; ri++){
       for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
-        if(DEPARTMENTS[ri].depts[di].id === window._targetDeptId){
+        if(DEPARTMENTS[ri].depts[di].id === targetDeptId){
           foundDept = DEPARTMENTS[ri].depts[di];
           break;
         }
@@ -1922,6 +1999,16 @@ function showDefenseTask(deptName, skill){
     pendingBreach: pending,
     onSuccess: function(){
       var deptId = window._targetDeptId;
+      
+      // ✅ 发送防御成功通知到服务器
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: "breach_defended",
+          deptId: deptId
+        }));
+      }
+      
+      // 本地立即更新（服务器会同步回来确认）
       for(var ri=0; ri<DEPARTMENTS.length; ri++){
         for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
           if(DEPARTMENTS[ri].depts[di].id === deptId){
@@ -1931,22 +2018,33 @@ function showDefenseTask(deptName, skill){
           }
         }
       }
-      if(window._breachAlerts && window._breachAlerts[deptId]){ delete window._breachAlerts[deptId]; }
-      if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({
-        type: "breach_defended",
-        deptId: deptId
-    }));
-}
-      actionLog.push("\uD83D\uDD35 蓝方使用 ["+defense.name+"] " + (isBreachDefense ? "成功防御了" : "维护了") + " "+deptName);
+      
+      // 清除本地攻击状态
+      if(window._breachAlerts && window._breachAlerts[deptId]){
+        delete window._breachAlerts[deptId];
+      }
       window._pendingBreach = null;
-      saveGameState(); render();
-      updateStatus(isBreachDefense ? "\uD83D\uDEE1\uFE0F 蓝方成功防御 " + deptName : "\uD83D\uDD27 蓝方完成维护 " + deptName);
-      alert(isBreachDefense ? "\u2705 防御成功！\n\n已使用「" + defense.name + "」阻止了 " + deptName + " 的沦陷！" : "\u2705 维护成功！\n\n已使用「" + defense.name + "」修复了 " + deptName + "！");
+      
+      // 清除UI动画
+      clearBreachAlertUI(deptId);
+      
+      render();
+      
+      var actionType = isBreachDefense ? "防御" : "修复";
+      updateStatus("🛡️ 蓝方成功" + actionType + " " + deptName);
+      
+      // 记录日志
+      actionLog.push("🔵 蓝方使用 ["+defense.name+"] " + (isBreachDefense ? "成功防御了" : "维护了") + " "+deptName);
+      
+      alert("✅ " + (isBreachDefense ? "防御成功！" : "修复成功！") + 
+            "\n\n已使用「" + defense.name + "」" + 
+            (isBreachDefense ? "阻止了 " + deptName + " 的沦陷！" : "修复了 " + deptName + "！"));
     },
     onTimeout: function(){
       var deptId = window._targetDeptId;
       var deptToBreach = null;
+      
+      // 查找部门
       for(var ri=0; ri<DEPARTMENTS.length; ri++){
         for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
           if(DEPARTMENTS[ri].depts[di].id === deptId){
@@ -1958,22 +2056,39 @@ function showDefenseTask(deptName, skill){
       }
       
       if(deptToBreach){
+        // 标记为沦陷
         deptToBreach.breached = true;
+        if(skill){
+          deptToBreach._attackedBy = {
+            id: skill.id,
+            name: skill.name,
+            repairTimer: skill.repairTimer,
+            attackTimer: skill.attackTimer,
+            time: skill.time,
+            level: skill.level
+          };
+        }
+        
+        // 清除攻击状态
         if(window._breachAlerts && window._breachAlerts[deptId]){
           delete window._breachAlerts[deptId];
         }
         if(window._pendingBreach && window._pendingBreach.deptId === deptId){
           window._pendingBreach = null;
         }
+        
+        // 清除UI
+        clearBreachAlertUI(deptId);
+        
         saveGameState();
         render();
       }
-      updateStatus(isBreachDefense ? "\u23F0 蓝方防御失败，" + deptName + " 已被攻破" : "\u23F0 维护失败，" + deptName + " 仍处于沦陷状态");
-      if(window._pendingBreach && window._pendingBreach.deptName === deptName){
-        window._pendingBreach.timeLeft = 0;
-      }
       
-      alert(isBreachDefense ? "\u274C " + deptName + " 已被攻破！": "\u274C " + deptName + " 维护失败！");
+      var actionType = isBreachDefense ? "防御" : "修复";
+      updateStatus("⏰ 蓝方" + actionType + "失败，" + deptName + " 已沦陷");
+      
+      alert("❌ " + (isBreachDefense ? "防御失败！" : "修复失败！") + 
+            "\n\n" + deptName + " 已被攻破！");
     }
   });
 }
