@@ -576,6 +576,7 @@ case 'room_update':
             for(var ri=0; ri<DEPARTMENTS.length; ri++){
                 for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
                     if(DEPARTMENTS[ri].depts[di].id === data.deptId){
+                      delete window._breachAlerts[data.deptId];
                         DEPARTMENTS[ri].depts[di].breached = false;
                         break;
                     }
@@ -722,7 +723,8 @@ function showBreachAlert(deptId, deptName, skill, timeLeft){
           }
           if(isBreached) break;
         }
-        
+        dept.breached = true
+        saveGameState()
         if(isBreached || remaining <= 0){
           if(alert.targetDeptEl){
             alert.targetDeptEl.classList.remove("breach-alert");
@@ -1730,6 +1732,7 @@ function startAttack(dept, deptName, skill){
   }
   window._breachAlerts[dept.id] = {
     deptName: deptName,
+    deptId: dept.id
     timeLeft: skill.time,
     targetDeptEl: targetDeptEl,
     card: card,
