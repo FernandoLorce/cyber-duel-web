@@ -553,16 +553,15 @@ case 'room_update':
             }
                 }
             }
-        // 只单向校正：选更小的值（时间只会减少，不会回跳）
-    if(newState.timeLeft < gameTimeLeft - 1 || !gameTimer) {
+         // 只有本地没启动计时器时才同步 gameTimeLeft（新人加入时）
+    if(!gameTimer && newState.gameActive){
+        gameTimeLeft = newState.timeLeft;
+        isGameActive = true;
+        if(!gameTimer) startGameTimer();
+    } else if(gameTimer && newState.timeLeft < gameTimeLeft - 1) {
+        // 单向校正：收到的值比自己小 1 秒以上才跟（只会减少，不回跳）
         gameTimeLeft = newState.timeLeft;
         updateTimerDisplay();
-    }
-            // 只有新加入的客户端才同步一次 gameTimeLeft
-    if(!gameTimer && newState.gameActive){
-        isGameActive = true;
-        var savedTimeLeft = gameTimeLeft;
-        startGameTimer();
     }
     
     // 只有 breach 状态真的变了才 render
@@ -585,6 +584,9 @@ case 'room_update':
             if(window._pendingBreach && window._pendingBreach.deptId === data.deptId){
                 window._pendingBreach = null;
             }
+             if(window._breachAlerts && window._breachAlerts[data.deptId]){
+        delete window._breachAlerts[data.deptId];
+    }
             for(var ri=0; ri<DEPARTMENTS.length; ri++){
                 for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
                     if(DEPARTMENTS[ri].depts[di].id === data.deptId){
@@ -863,12 +865,13 @@ function startGameTimer(){
  var tickCount = 0;
 gameTimer = setInterval(function(){
     gameTimeLeft--;
+  updateTimerDisplay();
+  
     tickCount++;
     if(tickCount % 10 === 0) {
         saveGameState();  // 每 10 秒广播一次做同步
     }
-    updateTimerDisplay();
-  
+    
     
     if(gameTimeLeft <= 0){
     clearInterval(gameTimer);
