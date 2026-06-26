@@ -736,31 +736,23 @@ function showBreachAlert(deptId, deptName, skill, timeLeft){
         }
         
         if(isBreached || remaining <= 0){
-          if(alert.targetDeptEl){
-            alert.targetDeptEl.classList.remove("breach-alert");
-            alert.targetDeptEl.style.background = "";
-            alert.targetDeptEl.style.borderColor = "";
-            alert.targetDeptEl.style.boxShadow = "";
-            if(alert.targetDeptEl._originalHTML){
-              alert.targetDeptEl.innerHTML = alert.targetDeptEl._originalHTML;
-              alert.targetDeptEl._originalHTML = null;
-            }
-          }
-          if(alert.card){
-            alert.card.classList.remove("breach-alert");
-            alert.card.style.borderColor = "";
-            alert.card.style.boxShadow = "";
-          }
+          
           toRemove.push(id);
-          if(window._pendingBreach && window._pendingBreach.deptId === id){
-            window._pendingBreach.timeLeft = 0;
-            window._pendingBreach = null;
-          }
+          
         } else {
           alert.timeLeft = remaining;
           if(window._pendingBreach && window._pendingBreach.deptId === id){
             window._pendingBreach.timeLeft = remaining;
           }
+          // 每次都重新查找 targetDeptEl（可能已被 render() 重建）
+    var deptEls = document.querySelectorAll(".dept-item");
+    for(var ei=0; ei<deptEls.length; ei++){
+        var attr = deptEls[ei].getAttribute("onclick");
+        if(attr && attr.indexOf(id) > -1){
+            alert.targetDeptEl = deptEls[ei];
+            break;
+        }
+    }
           if(alert.targetDeptEl){
             alert.targetDeptEl.innerHTML = "<span style='font-size:20px;font-weight:900;color:#dc2626;font-family:\"Orbitron\",monospace;animation:pulse-alert 0.5s ease-in-out infinite;'>🔴 "+Math.ceil(remaining)+"s</span>";
           }
