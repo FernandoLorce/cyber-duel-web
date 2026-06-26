@@ -770,7 +770,10 @@ function showBreachAlert(deptId, deptName, skill, timeLeft){
       for(var i=0; i<toRemove.length; i++){
         delete window._breachAlerts[toRemove[i]];
       }
-      
+      if(toRemove.length > 0){
+    render();
+}
+
       var hasAlerts = false;
       for(var key in window._breachAlerts){
         hasAlerts = true;
@@ -866,12 +869,7 @@ function startGameTimer(){
 gameTimer = setInterval(function(){
     gameTimeLeft--;
   updateTimerDisplay();
-  
-    tickCount++;
-    if(tickCount % 10 === 0) {
-        saveGameState();  // 每 10 秒广播一次做同步
-    }
-    
+        saveGameState();  
     
     if(gameTimeLeft <= 0){
     clearInterval(gameTimer);
