@@ -544,15 +544,25 @@ function handleWebSocketMessage(data) {
                 for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
                     var dept = DEPARTMENTS[ri].depts[di];
                     var found = newState.depts.find(function(s){ return s.id === dept.id; });
-                    if(found) dept.breached = found.breached;
+                    if(found && found.breached !== dept.breached){
+                dept.breached = found.breached;
+                changed = true;
+            }
                 }
             }
-            isGameActive = newState.gameActive;
-            gameTimeLeft = newState.timeLeft;
-            diffValue = newState.diffValue;
-            updateTimerDisplay();
-            render();
-            updateStatus("🔄 状态已同步");
+            if(newState.timeLeft < gameTimeLeft - 1 || !gameTimer) {
+        gameTimeLeft = newState.timeLeft;
+        updateTimerDisplay();
+    }
+    // 本地计时器没启动的话，用同步值启动
+    if(!gameTimer && newState.gameActive){
+        isGameActive = true;
+        var savedTimeLeft = gameTimeLeft;
+        startGameTimer();
+    }
+    
+    // 只有 breach 状态真的变了才 render
+    if(changed) render();
             break;
             
         case 'game_over':
@@ -850,11 +860,14 @@ function startGameTimer(){
   gameTimeLeft = 600;
   updateTimerDisplay();
   saveGameState();
+  var tickCount = 0;
   gameTimer = setInterval(function(){
     gameTimeLeft--;
+    tickCount++;
+    if(tickCount % 10 === 0) {
+        saveGameState();  // 每 10 秒广播一次做同步
+    }
     updateTimerDisplay();
-    saveGameState();
-    
     if(gameTimeLeft <= 0){
     clearInterval(gameTimer);
     gameTimer = null;
