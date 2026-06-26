@@ -553,11 +553,16 @@ case 'room_update':
             }
                 }
             }
+        // 只单向校正：选更小的值（时间只会减少，不会回跳）
+    if(newState.timeLeft < gameTimeLeft - 1 || !gameTimer) {
+        gameTimeLeft = newState.timeLeft;
+        updateTimerDisplay();
+    }
             // 只有新加入的客户端才同步一次 gameTimeLeft
     if(!gameTimer && newState.gameActive){
-        gameTimeLeft = newState.timeLeft;
         isGameActive = true;
-        if(!gameTimer) startGameTimer();
+        var savedTimeLeft = gameTimeLeft;
+        startGameTimer();
     }
     
     // 只有 breach 状态真的变了才 render
@@ -855,8 +860,13 @@ function startGameTimer(){
   gameTimeLeft = 600;
   updateTimerDisplay();
   saveGameState();
-  gameTimer = setInterval(function(){
+ var tickCount = 0;
+gameTimer = setInterval(function(){
     gameTimeLeft--;
+    tickCount++;
+    if(tickCount % 10 === 0) {
+        saveGameState();  // 每 10 秒广播一次做同步
+    }
     updateTimerDisplay();
   
     
