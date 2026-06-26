@@ -576,7 +576,6 @@ case 'room_update':
             for(var ri=0; ri<DEPARTMENTS.length; ri++){
                 for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
                     if(DEPARTMENTS[ri].depts[di].id === data.deptId){
-                      delete window._breachAlerts[data.deptId];
                         DEPARTMENTS[ri].depts[di].breached = false;
                         break;
                     }
@@ -651,7 +650,9 @@ function showBreachAlert(deptId, deptName, skill, timeLeft){
  // 检查是否已存在该部门的警报，如果存在则更新，否则新建
   if(window._breachAlerts[deptId]){
     // 更新已有警报
-    
+    window._breachAlerts[deptId].timeLeft = timeLeft;
+    window._breachAlerts[deptId].startTime = Date.now();
+    window._breachAlerts[deptId].totalTime = timeLeft;
     window._breachAlerts[deptId].deptName = deptName;
     window._breachAlerts[deptId].skill = skill;
   } else {
@@ -723,8 +724,7 @@ function showBreachAlert(deptId, deptName, skill, timeLeft){
           }
           if(isBreached) break;
         }
-        dept.breached = true
-        saveGameState()
+        
         if(isBreached || remaining <= 0){
           if(alert.targetDeptEl){
             alert.targetDeptEl.classList.remove("breach-alert");
@@ -852,14 +852,10 @@ function startGameTimer(){
   gameTimeLeft = 600;
   updateTimerDisplay();
   saveGameState();
-  var syncCounter = 0;
   gameTimer = setInterval(function(){
     gameTimeLeft--;
     updateTimerDisplay();
-    syncCounter++;
-    if(syncCounter % 5 === 0) {
-        saveGameState();  // 每 10 秒同步一次，不再每秒对战
-    }
+    saveGameState();
     
     if(gameTimeLeft <= 0){
     clearInterval(gameTimer);
@@ -1732,7 +1728,6 @@ function startAttack(dept, deptName, skill){
   }
   window._breachAlerts[dept.id] = {
     deptName: deptName,
-    deptId: dept.id
     timeLeft: skill.time,
     targetDeptEl: targetDeptEl,
     card: card,
