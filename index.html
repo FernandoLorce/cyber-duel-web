@@ -542,19 +542,26 @@ case 'room_update':
             
         case 'state_update':
             var newState = data.state;
+            var changed = false;
             for(var ri=0; ri<DEPARTMENTS.length; ri++){
                 for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
                     var dept = DEPARTMENTS[ri].depts[di];
                     var found = newState.depts.find(function(s){ return s.id === dept.id; });
-                    if(found) dept.breached = found.breached;
+                    if(found && found.breached !== dept.breached){
+                dept.breached = found.breached;
+                changed = true;
+            }
                 }
             }
-            isGameActive = newState.gameActive;
-            gameTimeLeft = newState.timeLeft;
-            diffValue = newState.diffValue;
-            updateTimerDisplay();
-            render();
-            updateStatus("🔄 状态已同步");
+            // 只有新加入的客户端才同步一次 gameTimeLeft
+    if(!gameTimer && newState.gameActive){
+        gameTimeLeft = newState.timeLeft;
+        isGameActive = true;
+        if(!gameTimer) startGameTimer();
+    }
+    
+    // 只有 breach 状态真的变了才 render
+    if(changed) render();
             break;
             
         case 'game_over':
@@ -649,10 +656,6 @@ function showBreachAlert(deptId, deptName, skill, timeLeft){
   }
  // 检查是否已存在该部门的警报，如果存在则更新，否则新建
   if(window._breachAlerts[deptId]){
-    // 更新已有警报
-    window._breachAlerts[deptId].timeLeft = timeLeft;
-    window._breachAlerts[deptId].startTime = Date.now();
-    window._breachAlerts[deptId].totalTime = timeLeft;
     window._breachAlerts[deptId].deptName = deptName;
     window._breachAlerts[deptId].skill = skill;
   } else {
@@ -855,7 +858,7 @@ function startGameTimer(){
   gameTimer = setInterval(function(){
     gameTimeLeft--;
     updateTimerDisplay();
-    saveGameState();
+  
     
     if(gameTimeLeft <= 0){
     clearInterval(gameTimer);
