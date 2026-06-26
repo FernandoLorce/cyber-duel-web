@@ -862,8 +862,8 @@ function startGameTimer(){
   gameTimer = setInterval(function(){
     gameTimeLeft--;
     tickCount++;
-    if(tickCount % 10 === 0) {
-        saveGameState();  // 每 10 秒广播一次做同步
+    if(tickCount % 1 === 0) {
+        saveGameState();  // 每 1 秒广播一次做同步
     }
     updateTimerDisplay();
     if(gameTimeLeft <= 0){
