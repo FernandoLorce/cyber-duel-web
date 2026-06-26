@@ -1233,11 +1233,7 @@ function render(){
       var isBreached = dept.breached;
       
       var underAlert = window._breachAlerts && window._breachAlerts[dept.id];
-      if(underAlert){
-        html += "<div class='dept-item breach-alert' onclick='action(\""+dept.id+"\",\""+dept.name+"\")'>";
-        html += "<span style='font-size:20px;font-weight:900;color:#dc2626;font-family:\"Orbitron\",monospace;animation:pulse-alert 0.5s ease-in-out infinite;'>🔴 "+Math.ceil(underAlert.timeLeft)+"s</span>";
-        html += "</div>";
-      } else {
+      
         var statusIcon = isBreached ? "💀" : "🟢";
         var extraClass = isBreached ? "breached" : "";
         html += "<div class='dept-item "+extraClass+"' onclick='action(\""+dept.id+"\",\""+dept.name+"\")'>";
@@ -1246,7 +1242,7 @@ function render(){
         html += "<span class='dlv'>Lv"+(dj+1)+"</span>";
         html += "<span class='dstatus'>"+statusIcon+"</span>";
         html += "</div>";
-      }
+      
     }
     html += "</div></div>";
   }
