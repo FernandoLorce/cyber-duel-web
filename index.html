@@ -531,6 +531,8 @@ function handleWebSocketMessage(data) {
         updateStatus("👤 等待更多玩家加入... (" + data.playerCount + "/" + data.maxPlayers + ")");
     }
     break;
+    // 立即同步状态，让新加入的玩家看到当前状态
+    if(isGameActive) syncDeptState();
     
 case 'room_update':
     if (data.playerCount === data.maxPlayers) {
@@ -571,6 +573,10 @@ case 'room_update':
         case 'breach_defended':
             if(window._pendingBreach && window._pendingBreach.deptId === data.deptId){
                 window._pendingBreach = null;
+            }
+            // 也删除 _breachAlerts，停止正在进行的攻磴倒计时（修复防御后部门不再继续沦陷）
+            if(window._breachAlerts && window._breachAlerts[data.deptId]){
+                delete window._breachAlerts[data.deptId];
             }
             for(var ri=0; ri<DEPARTMENTS.length; ri++){
                 for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
