@@ -431,23 +431,49 @@ function loadGameState(){
 function saveGameState(){
     var state = {
         roomId: roomId || "未连接",
-        depts: [],
+        depts: DEPARTMENTS.map(function(range){
+            return range.depts.map(function(dept){
+                return {
+                    id: dept.id,
+                    breached: dept.breached,
+                    _attackedBy: dept._attackedBy ? {
+                        id: dept._attackedBy.id,
+                        name: dept._attackedBy.name,
+                        repairTimer: dept._attackedBy.repairTimer,
+                        attackTimer: dept._attackedBy.attackTimer,
+                        time: dept._attackedBy.time,
+                        level: dept._attackedBy.level
+                    } : null
+                };
+            });
+        }).flat(),
         gameActive: isGameActive,
         timeLeft: gameTimeLeft,
-        diffValue: diffValue
+        diffValue: diffValue,
+        actionLog: actionLog.slice(-20)  // 只保留最近20条
     };
-    for(var ri=0; ri<DEPARTMENTS.length; ri++){
-        for(var di=0; di<DEPARTMENTS[ri].depts.length; di++){
-            state.depts.push({
-                id: DEPARTMENTS[ri].depts[di].id,
-                breached: DEPARTMENTS[ri].depts[di].breached
-            });
-        }
-    }
     localStorage.setItem("cyberDuel_state", JSON.stringify(state));
-    // 使用 WebSocket 发送
     sendStateUpdate(state);
 }
+  function getOrCreateClientId() {
+    var id = localStorage.getItem("cyberDuel_clientId");
+    if (!id) {
+        id = 'client_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        localStorage.setItem("cyberDuel_clientId", id);
+    }
+    return id;
+}
+wsClientId = getOrCreateClientId();
+  function leaveRoom() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: 'leave_room',
+            roomId: roomId
+        }));
+    }
+}
+
+
 function getBreachedCount(){
   var count = 0;
   for(var ri=0; ri<DEPARTMENTS.length; ri++){
@@ -465,53 +491,44 @@ var wsClientId = "";
 
 function initWebSocket() {
     if (ws && ws.readyState === WebSocket.OPEN) {
-        console.log("⚠️ WebSocket 已存在且打开");
-        // 如果已经打开但还没加入房间，尝试加入
-        if (roomId) {
-            joinRoom(roomId);
-        }
+        // 如果已连接，直接加入房间
+        if (roomId) joinRoom(roomId);
         return;
     }
     
-    const wsUrl = getWebSocketUrl();
-    console.log("🔗 正在连接 WebSocket:", wsUrl);
-    ws = new WebSocket(wsUrl);
+    ws = new WebSocket(getWebSocketUrl());
     
     ws.onopen = function() {
         wsConnected = true;
-        console.log("✅ WebSocket 已连接");
-        console.log("📦 当前房间号:", roomId);
-        // 延迟一下确保连接稳定
-        setTimeout(function() {
-            if (roomId) {
-                console.log("📤 发送 join_room:", roomId);
-                joinRoom(roomId);
-            } else {
-                console.log("⚠️ roomId 为空，无法加入房间");
-            }
-        }, 100);
-    };
-    
-    ws.onmessage = function(event) {
-        try {
-            const data = JSON.parse(event.data);
-            handleWebSocketMessage(data);
-        } catch(e) {
-            console.error("❌ 解析消息失败:", e);
+        // 加入房间（带重试）
+        if (roomId) {
+            joinRoomWithRetry(roomId, 3);
         }
     };
     
     ws.onclose = function() {
         wsConnected = false;
-        console.log("🔌 WebSocket 已断开，尝试重连...");
+        // 重连
         setTimeout(initWebSocket, 3000);
     };
-    
-    ws.onerror = function(err) {
-        console.error("❌ WebSocket 错误:", err);
-    };
 }
-
+function joinRoomWithRetry(roomId, retries) {
+    if (retries <= 0) {
+        console.error("❌ 加入房间失败，已达到最大重试次数");
+        return;
+    }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: 'join_room',
+            roomId: roomId,
+            clientId: wsClientId || generateClientId()
+        }));
+    } else {
+        setTimeout(function() {
+            joinRoomWithRetry(roomId, retries - 1);
+        }, 500);
+    }
+}
 function getWebSocketUrl() {
     // 🔥 替换成你的 Railway 部署域名（去掉 https://）
     const WS_HOST = 'cyber-duel-server-production.up.railway.app';
@@ -776,47 +793,16 @@ function showBreachAlert(deptId, deptName, skill, timeLeft){
 
 // ===================== 差值设置页面 =====================
 function confirmDiff(){
-    var input = document.getElementById("diff-input");
-    var val = parseInt(input.value);
-    if(isNaN(val) || val < 0 || val > 30){
-        alert("请输入0-30之间的数字！");
-        return;
-    }
-    diffValue = val;
-    
-    var roomInput = document.getElementById("room-input");
-    var inputRoomId = "";
-    if (roomInput) {
-        inputRoomId = roomInput.value.trim().toUpperCase();
-    }
-    
+    // 先设置 roomId
     if(inputRoomId && inputRoomId.length >= 4){
         roomId = inputRoomId;
-        document.getElementById("room-id-display").textContent = "🏠 房间: " + roomId;
-        console.log("📦 加入已有房间:", roomId);
-        // 加载本地状态
-        var saved = localStorage.getItem("cyberDuel_state");
-        if(saved){
-            try{
-                var state = JSON.parse(saved);
-                if(state.roomId === roomId){
-                    loadGameState();
-                }
-            }catch(e){}
-        }
     } else {
         roomId = generateRoomId();
-        document.getElementById("room-id-display").textContent = "🏠 房间: " + roomId;
         applyDiff(val);
-        saveGameState();
-        console.log("📦 创建新房间:", roomId);
     }
     
-    console.log("📦 最终房间号:", roomId);
-    
-    // ⚠️ 重要：先初始化 WebSocket，再进入阵营选择
+    // 初始化 WebSocket（内部会自动加入房间）
     initWebSocket();
-    
     showFaction();
 }
 
