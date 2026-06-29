@@ -83,22 +83,22 @@ body::before{
 #s-battle .tb .logo{font-family:"Orbitron",sans-serif;font-size:15px;font-weight:900;letter-spacing:3px;color:#0f172a}
 #s-battle .tb .logo span.r{color:#e11d48}
 #s-battle .tb .logo span.b{color:#2563eb}
-.fl{font-size:11px;font-family:"Orbitron",monospace;letter-spacing:2px;padding:5px 16px;border-radius:20px}
+.fl{font-size:16px;font-family:"Orbitron",monospace;letter-spacing:2px;padding:5px 16px;border-radius:20px}
 .fl.r{background:#fee2e2;color:#e11d48;border:1px solid #fecaca}
 .fl.b{background:#dbeafe;color:#2563eb;border:1px solid #bfdbfe}
 .fl.neutral{background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0}
-.timer-display{font-size:18px;font-family:"Orbitron",monospace;color:#0f172a;background:#f1f5f9;padding:4px 16px;border-radius:20px;border:1px solid #e2e8f0;font-weight:700}
+.timer-display{font-size:28px;font-family:"Orbitron",monospace;color:#0f172a;background:#f1f5f9;padding:4px 16px;border-radius:20px;border:1px solid #e2e8f0;font-weight:700}
 .timer-display.warning{color:#dc2626;background:#fee2e2;border-color:#fecaca;animation:pulse-timer 1s ease-in-out infinite}
 @keyframes pulse-timer{0%,100%{opacity:1}50%{opacity:0.5}}
 
 .battle-body{width:100%;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 20px 10px;overflow:hidden;position:relative;z-index:1}
-.battle-grid{display:flex;gap:40px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.battle-grid{display:flex;gap:20px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
 
 /* ===== 防御塔 - 白色明亮风格 ===== */
-.range-block{display:flex;flex-direction:column;align-items:center;gap:14px}
-.range-card{width:180px;height:250px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;cursor:default;transition:all 0.3s}
-.range-card .tower-base{position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:110px;height:18px;background:radial-gradient(ellipse at center,rgba(100,116,139,0.12) 0%,transparent 70%);border-radius:50%;z-index:0}
-.range-card .tower-body{position:relative;width:130px;height:215px;background:linear-gradient(180deg,#ffffff 0%,#f8fafc 25%,#f1f5f9 50%,#f8fafc 75%,#ffffff 100%);clip-path:polygon(12% 0%,88% 0%,100% 100%,0% 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1;border:1.5px solid rgba(148,163,184,0.2);border-bottom:none;transition:all 0.5s;box-shadow:0 4px 16px rgba(0,0,0,0.04),inset 0 1px 0 rgba(255,255,255,0.9)}
+.range-block{display:flex;flex-direction:column;align-items:center;gap:20px}
+.range-card{width:240px;height:310px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;cursor:default;transition:all 0.3s}
+.range-card .tower-base{position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:180px;height:30px;background:radial-gradient(ellipse at center,rgba(100,116,139,0.12) 0%,transparent 70%);border-radius:50%;z-index:0}
+.range-card .tower-body{position:relative;width:175px;height:270px;background:linear-gradient(180deg,#ffffff 0%,#f8fafc 25%,#f1f5f9 50%,#f8fafc 75%,#ffffff 100%);clip-path:polygon(12% 0%,88% 0%,100% 100%,0% 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1;border:1.5px solid rgba(148,163,184,0.2);border-bottom:none;transition:all 0.5s;box-shadow:0 4px 16px rgba(0,0,0,0.04),inset 0 1px 0 rgba(255,255,255,0.9)}
 .range-card .tower-body::before{content:"";position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(0deg,transparent,transparent 18px,rgba(0,0,0,0.03) 18px,rgba(0,0,0,0.03) 19px),repeating-linear-gradient(90deg,transparent,transparent 20px,rgba(0,0,0,0.02) 20px,rgba(0,0,0,0.02) 21px);clip-path:polygon(12% 0%,88% 0%,100% 100%,0% 100%);pointer-events:none}
 .range-card .tower-body .glow-line{position:absolute;left:15%;right:15%;height:1.5px;background:linear-gradient(90deg,transparent,rgba(148,163,184,0.15),rgba(148,163,184,0.3),rgba(148,163,184,0.15),transparent);border-radius:2px}
 .range-card .tower-body .glow-line.g1{top:28%}
@@ -108,9 +108,9 @@ body::before{
 .range-card .tower-body .diamond{position:absolute;width:16px;height:16px;background:linear-gradient(135deg,rgba(148,163,184,0.08),rgba(148,163,184,0.02));border:1px solid rgba(148,163,184,0.1);transform:rotate(45deg)}
 .range-card .tower-body .diamond.d1{top:20%;left:50%;margin-left:-8px}
 .range-card .tower-body .diamond.d2{top:58%;left:50%;margin-left:-8px}
-.range-card .tower-body .ri{font-size:44px;display:block;margin-top:4px;position:relative;z-index:2}
-.range-card .tower-body .rn{font-family:"Orbitron",sans-serif;font-size:17px;font-weight:700;letter-spacing:0.5px;text-align:center;line-height:1.2;color:#1e293b;position:relative;z-index:2;margin-top:2px}
-.range-card .tower-body .rstatus{font-size:13px;font-family:"Orbitron",monospace;padding:2px 10px;border-radius:10px;margin-top:4px;position:relative;z-index:2}
+.range-card .tower-body .ri{font-size:64px;display:block;margin-top:4px;position:relative;z-index:2}
+.range-card .tower-body .rn{font-family:"Orbitron",sans-serif;font-size:24px;font-weight:700;letter-spacing:0.5px;text-align:center;line-height:1.2;color:#1e293b;position:relative;z-index:2;margin-top:2px}
+.range-card .tower-body .rstatus{font-size:18px;font-family:"Orbitron",monospace;padding:2px 10px;border-radius:10px;margin-top:4px;position:relative;z-index:2}
 .range-card .tower-body .rstatus.ok{color:#059669;background:#d1fae5}
 .range-card .tower-body .rstatus.down{color:#dc2626;background:#fee2e2}
 .range-card .tower-body .rstatus.warn{color:#d97706;background:#fef3c7}
@@ -131,23 +131,23 @@ body::before{
 .range-card:hover .tower-body{transform:translateY(-3px);box-shadow:0 8px 30px rgba(0,0,0,0.06),inset 0 1px 0 rgba(255,255,255,0.9)}
 
 /* ===== 部门小长方体 ===== */
-.dept-list{display:flex;flex-direction:column;gap:4px;width:100%;max-width:170px}
-.dept-item{display:flex;align-items:center;gap:10px;padding:12px 18px;background:rgba(255,255,255,0.7);backdrop-filter:blur(4px);border:1px solid rgba(0,0,0,0.06);border-radius:6px;cursor:pointer;transition:all 0.25s;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.02)}
+.dept-list{display:flex;flex-direction:column;gap:12px;width:100%;max-width:220px}
+.dept-item{display:flex;align-items:center;gap:14px;padding:18px 24px;background:rgba(255,255,255,0.7);backdrop-filter:blur(4px);border:1px solid rgba(0,0,0,0.06);border-radius:6px;cursor:pointer;transition:all 0.25s;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.02)}
 .dept-item:hover{background:#ffffff;border-color:#94a3b8;transform:translateX(3px);box-shadow:0 2px 8px rgba(0,0,0,0.06)}
-.dept-item .di{font-size:22px;flex-shrink:0}
-.dept-item .dn{font-size:18px;font-weight:600;flex:1;text-align:center;white-space:nowrap;color:#1e293b}
-.dept-item .dlv{font-size:10px;font-family:"Orbitron",monospace;color:#94a3b8;background:rgba(148,163,184,0.12);padding:0 8px;border-radius:3px;flex-shrink:0}
-.dept-item .dstatus{font-size:20px;flex-shrink:0}
+.dept-item .di{font-size:28px;flex-shrink:0}
+.dept-item .dn{font-size:22px;font-weight:600;flex:1;text-align:center;white-space:nowrap;color:#1e293b}
+.dept-item .dlv{font-size:16px;font-family:"Orbitron",monospace;color:#94a3b8;background:rgba(148,163,184,0.12);padding:0 8px;border-radius:3px;flex-shrink:0}
+.dept-item .dstatus{font-size:26px;flex-shrink:0}
 .dept-item.breached{background:#fee2e2;border-color:#fecaca}
 .dept-item.breached .dn{color:#dc2626}
 
 /* 底部 */
 .battle-footer{width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 24px 6px;border-top:1px solid rgba(0,0,0,0.06);flex-shrink:0;flex-wrap:wrap;gap:6px;background:rgba(255,255,255,0.4);backdrop-filter:blur(8px);z-index:5}
-.battle-footer .info{font-size:18px;color:#64748b;font-family:"Orbitron",monospace;letter-spacing:0.5px}
+.battle-footer .info{font-size:22px;color:#64748b;font-family:"Orbitron",monospace;letter-spacing:0.5px}
 .battle-footer .info strong{color:#0f172a}
-.bb{font-family:"Orbitron",monospace;font-size:16px;letter-spacing:1.5px;color:#64748b;background:rgba(255,255,255,0.6);border:1px solid rgba(0,0,0,0.08);padding:10px 26px;border-radius:6px;cursor:pointer;transition:all 0.3s}
+.bb{font-family:"Orbitron",monospace;font-size:20px;letter-spacing:1.5px;color:#64748b;background:rgba(255,255,255,0.6);border:1px solid rgba(0,0,0,0.08);padding:14px 32px;border-radius:6px;cursor:pointer;transition:all 0.3s}
 .bb:hover{color:#0f172a;border-color:#94a3b8;background:#ffffff}
-.room-id-display{font-size:15px;color:#64748b;font-family:"Orbitron",monospace;background:#f1f5f9;padding:4px 16px;border-radius:20px;border:1px solid #e2e8f0}
+.room-id-display{font-size:18px;color:#64748b;font-family:"Orbitron",monospace;background:#f1f5f9;padding:4px 16px;border-radius:20px;border:1px solid #e2e8f0}
 
 /* 响应式 */
 @media(max-width:820px){.range-card{width:100px;height:150px}.range-card .tower-body{width:74px;height:128px}.range-card .tower-body .ri{font-size:22px}.range-card .tower-body .rn{font-size:10px}.range-card .tower-body .rstatus{font-size:8px}.range-card .tower-top .spire{border-left-width:7px;border-right-width:7px;border-bottom-width:16px}.range-card .tower-top .orb{width:10px;height:10px;bottom:-4px}.dept-list{max-width:100px}.battle-grid{gap:22px}}
