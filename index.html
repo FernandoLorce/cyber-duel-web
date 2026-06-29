@@ -387,7 +387,7 @@ var channel = null;
 var currentFaction = "";
 var actionLog = [];
 var gameTimer = null;
-var gameTimeLeft = 600;
+var gameTimeLeft = 660;
 var isGameActive = false;
 var diffValue = 0;
 var roomId = "";
@@ -601,7 +601,7 @@ function handleWebSocketMessage(data) {
                 }
             }
             isGameActive = false;
-            gameTimeLeft = 600;
+            gameTimeLeft = 660;
             roomId = "";
             localStorage.removeItem("cyberDuel_state");
             if(gameTimer){
