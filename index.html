@@ -387,7 +387,7 @@ var channel = null;
 var currentFaction = "";
 var actionLog = [];
 var gameTimer = null;
-var gameTimeLeft = 720;
+var gameTimeLeft = 660;
 var isGameActive = false;
 var diffValue = 0;
 var roomId = "";
@@ -601,7 +601,7 @@ function handleWebSocketMessage(data) {
                 }
             }
             isGameActive = false;
-            gameTimeLeft = 720;
+            gameTimeLeft = 660;
             roomId = "";
             localStorage.removeItem("cyberDuel_state");
             if(gameTimer){
@@ -881,7 +881,7 @@ function startGameTimer(){
     gameTimer = null;
   }
   isGameActive = true;
-  gameTimeLeft = 600;
+  gameTimeLeft = 660;
   updateTimerDisplay();
   saveGameState();
   gameTimer = setInterval(function(){
@@ -932,7 +932,7 @@ function resetGame(){
   actionLog = [];
   localStorage.removeItem("cyberDuel_state");
   isGameActive = false;
-  gameTimeLeft = 600;
+  gameTimeLeft = 660;
   roomId = "";
   clearAllBreachAlerts();
   if(window._attackTimer){
@@ -1033,7 +1033,7 @@ function playAgain(){
     actionLog = [];
     localStorage.removeItem("cyberDuel_state");
     isGameActive = false;
-    gameTimeLeft = 600;
+    gameTimeLeft = 660;
     roomId = "";
     clearAllBreachAlerts();
     if(window._attackTimer){
@@ -1065,7 +1065,7 @@ function goHome(){
     actionLog = [];
     localStorage.removeItem("cyberDuel_state");
     isGameActive = false;
-    gameTimeLeft = 600;
+    gameTimeLeft = 660;
     roomId = "";
     clearAllBreachAlerts();
     if(window._attackTimer){
@@ -1154,7 +1154,7 @@ function resetGame(){
     actionLog = [];
     localStorage.removeItem("cyberDuel_state");
     isGameActive = false;
-    gameTimeLeft = 600;
+    gameTimeLeft = 660;
     roomId = "";
     clearAllBreachAlerts();
     if(window._attackTimer){
